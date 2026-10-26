@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up — Kidhar</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#103A5C">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<div id="login-screen" style="display:flex;">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-icon">📍</div>
+      <h1>Create Account</h1>
+      <div class="subtitle">Kidhar sign up</div>
+    </div>
+
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="su-name" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="su-email" />
+    </div>
+    <div class="form-group">
+      <label>Password (at least 6 characters)</label>
+      <input type="password" id="su-password" />
+    </div>
+    <button class="btn-primary" onclick="doSignup()">Sign Up</button>
+    <div class="error-msg" id="su-error"></div>
+    <p style="text-align:center;margin-top:16px;font-size:13px;">
+      Already have an account? <a href="index.html" style="color:var(--primary);">Log in</a>
+    </p>
+  </div>
+  <div class="app-footer">
+    <div class="footer-links"><a href="privacy.html">Privacy Policy</a></div>
+    <p class="support-line">Questions? <a href="mailto:info.anyapps@gmail.com">info.anyapps@gmail.com</a></p>
+    <p class="powered-by">Powered by <a href="https://anyapps.in" target="_blank" rel="noopener" class="anyapps-badge">Any<span class="accent">Apps</span>.in</a></p>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="js/config.js"></script>
+<script>
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show ' + (type || '');
+  setTimeout(() => { toast.className = 'toast'; }, type === 'error' ? 8000 : 3000);
+}
+
+async function doSignup() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-password').value;
+  const errEl = document.getElementById('su-error');
+  errEl.textContent = '';
+
+  if (!name) { errEl.textContent = 'Enter your name.'; return; }
+  if (!email) { errEl.textContent = 'Enter your email.'; return; }
+  if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+
+  const { error } = await db.auth.signUp({ email, password, options: { data: { name } } });
+  if (error) { errEl.textContent = error.message; return; }
+
+  showToast('✅ Check your email to confirm your account, then log in to finish setup.', 'success');
+  setTimeout(() => { window.location.href = 'index.html'; }, 2500);
+}
+</script>
+</body>
+</html>

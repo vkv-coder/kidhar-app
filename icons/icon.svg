@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <circle cx="256" cy="256" r="256" fill="#103A5C"/>
+  <circle cx="256" cy="256" r="210" fill="#00A8A8"/>
+  <text x="256" y="300" text-anchor="middle" font-size="260">📍</text>
+</svg>

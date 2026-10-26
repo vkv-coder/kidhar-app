@@ -1,0 +1,14 @@
+{
+  "name": "Kidhar",
+  "short_name": "Kidhar",
+  "description": "Staff location check-in and lookup for security/field teams.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F2F6F9",
+  "theme_color": "#103A5C",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

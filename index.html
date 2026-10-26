@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kidhar</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#103A5C">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-icon">📍</div>
+      <h1>Kidhar</h1>
+      <div class="subtitle">Staff Location Check-In</div>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" />
+    </div>
+    <button class="btn-primary" onclick="login()">Log In</button>
+    <div class="error-msg" id="login-error"></div>
+    <p style="text-align:center;margin-top:16px;font-size:13px;">
+      <a href="javascript:void(0)" onclick="showForgotPassword()" style="color:var(--primary);">Forgot password?</a><br>
+      No account? <a href="signup.html" style="color:var(--primary);">Sign up</a>
+    </p>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted);">Support: vkvcoder.support@gmail.com</p>
+  </div>
+  <div class="app-footer">
+    <div class="footer-links"><a href="privacy.html">Privacy Policy</a></div>
+    <p class="support-line">Questions? <a href="mailto:info.anyapps@gmail.com">info.anyapps@gmail.com</a></p>
+    <p class="powered-by">Powered by <a href="https://anyapps.in" target="_blank" rel="noopener" class="anyapps-badge">Any<span class="accent">Apps</span>.in</a></p>
+  </div>
+</div>
+
+<!-- Forgot password modal -->
+<div id="forgotModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Reset Password</div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="forgotEmail" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="sendForgotPassword()">Send Reset Link</button>
+      <button class="btn-secondary" onclick="hideForgotPassword()">Cancel</button>
+    </div>
+    <div class="error-msg" id="forgotMsg" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========== FINISH SETUP SCREEN (first login after email confirmation) ========== -->
+<div id="setup-screen" style="display:none;">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-icon">📍</div>
+      <h1>Finish Setting Up</h1>
+      <div class="subtitle">One more step before you can use Kidhar</div>
+    </div>
+    <div class="form-group">
+      <label>I am</label>
+      <select id="setup-mode" onchange="onSetupModeChange()">
+        <option value="join">Joining my company's team (needs admin approval)</option>
+        <option value="create">Setting up Kidhar for a new company</option>
+      </select>
+    </div>
+    <div class="form-group" id="setup-company-select-group">
+      <label>Your Company</label>
+      <select id="setup-company-id"></select>
+    </div>
+    <div class="form-group" id="setup-company-name-group" style="display:none;">
+      <label>Company Name</label>
+      <input type="text" id="setup-company-name" placeholder="e.g. Shree Security Services" />
+    </div>
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="setup-name" />
+    </div>
+    <button class="btn-primary" onclick="finishSetup()">Finish Setup</button>
+    <div class="error-msg" id="setup-error"></div>
+    <p style="text-align:center;margin-top:16px;font-size:13px;">
+      <a href="javascript:void(0)" onclick="logout()" style="color:var(--primary);">Log out</a>
+    </p>
+  </div>
+  <div class="app-footer">
+    <div class="footer-links"><a href="privacy.html">Privacy Policy</a></div>
+    <p class="support-line">Questions? <a href="mailto:info.anyapps@gmail.com">info.anyapps@gmail.com</a></p>
+    <p class="powered-by">Powered by <a href="https://anyapps.in" target="_blank" rel="noopener" class="anyapps-badge">Any<span class="accent">Apps</span>.in</a></p>
+  </div>
+</div>
+
+<!-- New password modal (after clicking the reset link) -->
+<div id="newPassModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Set New Password</div>
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" id="newPassInput" />
+    </div>
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <input type="password" id="newPassConfirm" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="confirmNewPassword()">Update Password</button>
+    </div>
+    <div class="error-msg" id="newPassMsg" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ========== MAIN APP ========== -->
+<div id="main-screen" style="display:none;">
+  <div class="app-header-sticky">
+    <div class="topbar">
+      <span class="app-title">📍 Kidhar</span>
+      <div class="topbar-right">
+        <span class="role-badge" id="user-role-badge"></span>
+        <button class="btn-logout" onclick="logout()">Log Out</button>
+      </div>
+    </div>
+    <div class="nav-tabs" id="nav-tabs"></div>
+  </div>
+  <div class="page-content" id="page-content"></div>
+  <div class="app-footer">
+    <div class="footer-links"><a href="privacy.html">Privacy Policy</a></div>
+    <p class="support-line">Questions? <a href="mailto:info.anyapps@gmail.com">info.anyapps@gmail.com</a></p>
+    <p class="powered-by">Powered by <a href="https://anyapps.in" target="_blank" rel="noopener" class="anyapps-badge">Any<span class="accent">Apps</span>.in</a></p>
+  </div>
+</div>
+
+<!-- Modal + Toast (shared) -->
+<div id="modal-overlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box" id="modal-box"></div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/setup.js"></script>
+<script src="js/app.js"></script>
+<script src="js/checkin.js"></script>
+<script src="js/admin.js"></script>
+<script>
+document.getElementById('login-password').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') login();
+});
+</script>
+</body>
+</html>
