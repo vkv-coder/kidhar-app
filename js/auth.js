@@ -26,7 +26,7 @@ async function login() {
 
   if (!email || !password) { errEl.textContent = 'Please enter email and password.'; return; }
 
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  const { data, error } = await db.auth.signInWithPassword({ email: tagEmail(email), password });
   if (error) { errEl.textContent = error.message; return; }
 
   currentUser = data.user;
@@ -104,7 +104,7 @@ async function sendForgotPassword() {
   const email = document.getElementById('forgotEmail').value.trim();
   const msg = document.getElementById('forgotMsg');
   if (!email) { msg.textContent = 'Please enter your email.'; msg.style.color = '#D32F2F'; msg.style.display = 'block'; return; }
-  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+  const { error } = await db.auth.resetPasswordForEmail(tagEmail(email), { redirectTo: window.location.origin + window.location.pathname });
   if (error) { msg.textContent = 'Error: ' + error.message; msg.style.color = '#D32F2F'; }
   else { msg.textContent = 'Reset link sent! Check your email.'; msg.style.color = '#2E7D32'; }
   msg.style.display = 'block';

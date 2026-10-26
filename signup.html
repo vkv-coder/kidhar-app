@@ -64,15 +64,15 @@ async function doSignup() {
   if (!email) { errEl.textContent = 'Enter your email.'; return; }
   if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
-  const { data, error } = await db.auth.signUp({ email, password, options: { data: { name } } });
+  const { data, error } = await db.auth.signUp({ email: tagEmail(email), password, options: { data: { name } } });
   if (error) { errEl.textContent = error.message; return; }
 
-  // Supabase silently no-ops (no new email sent) if this address already has
-  // an account anywhere on this shared login system - it signals that by
-  // returning an empty identities array instead of an error, to avoid
-  // leaking which emails are registered. Catch it so it's not a dead end.
+  // Supabase silently no-ops (no new email sent) if this exact tagged
+  // address already has a Kidhar account - it signals that with an empty
+  // identities array instead of an error, to avoid leaking which emails
+  // are registered. Catch it so it's not a dead end.
   if (data.user && data.user.identities && data.user.identities.length === 0) {
-    errEl.textContent = 'This email already has an account on this system (maybe from another app). Try logging in directly, or use something like yourname+kidhar@gmail.com to create a separate Kidhar account.';
+    errEl.textContent = 'You already have a Kidhar account with this email. Try logging in instead, or use "Forgot password" if you don\'t remember it.';
     return;
   }
 
