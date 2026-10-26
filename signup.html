@@ -64,7 +64,11 @@ async function doSignup() {
   if (!email) { errEl.textContent = 'Enter your email.'; return; }
   if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
-  const { data, error } = await db.auth.signUp({ email: tagEmail(email), password, options: { data: { name } } });
+  const { data, error } = await db.auth.signUp({
+    email: tagEmail(email),
+    password,
+    options: { data: { name }, emailRedirectTo: window.location.origin + '/index.html' }
+  });
   if (error) { errEl.textContent = error.message; return; }
 
   // Supabase silently no-ops (no new email sent) if this exact tagged
