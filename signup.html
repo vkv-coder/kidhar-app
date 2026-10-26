@@ -24,7 +24,8 @@
     </div>
     <div class="form-group">
       <label>Email</label>
-      <input type="email" id="su-email" />
+      <input type="email" id="su-email" autocomplete="off" oninput="updateEmailPreview()" />
+      <div class="form-hint" id="su-email-preview"></div>
     </div>
     <div class="form-group">
       <label>Password (at least 6 characters)</label>
@@ -53,6 +54,12 @@ function showToast(msg, type) {
   setTimeout(() => { toast.className = 'toast'; }, type === 'error' ? 8000 : 3000);
 }
 
+function updateEmailPreview() {
+  const email = document.getElementById('su-email').value.trim();
+  const previewEl = document.getElementById('su-email-preview');
+  previewEl.textContent = email ? ('Confirmation mail will go to: ' + tagEmail(email)) : '';
+}
+
 async function doSignup() {
   const name = document.getElementById('su-name').value.trim();
   const email = document.getElementById('su-email').value.trim();
@@ -62,6 +69,10 @@ async function doSignup() {
 
   if (!name) { errEl.textContent = 'Enter your name.'; return; }
   if (!email) { errEl.textContent = 'Enter your email.'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errEl.textContent = 'That doesn\'t look like a valid email - please clear the field and retype it (watch out for browser autofill splicing in an old address).';
+    return;
+  }
   if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
   const { data, error } = await db.auth.signUp({
