@@ -64,8 +64,17 @@ async function doSignup() {
   if (!email) { errEl.textContent = 'Enter your email.'; return; }
   if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
-  const { error } = await db.auth.signUp({ email, password, options: { data: { name } } });
+  const { data, error } = await db.auth.signUp({ email, password, options: { data: { name } } });
   if (error) { errEl.textContent = error.message; return; }
+
+  // Supabase silently no-ops (no new email sent) if this address already has
+  // an account anywhere on this shared login system - it signals that by
+  // returning an empty identities array instead of an error, to avoid
+  // leaking which emails are registered. Catch it so it's not a dead end.
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    errEl.textContent = 'This email already has an account on this system (maybe from another app). Try logging in directly, or use something like yourname+kidhar@gmail.com to create a separate Kidhar account.';
+    return;
+  }
 
   showToast('✅ Check your email to confirm your account, then log in to finish setup.', 'success');
   setTimeout(() => { window.location.href = 'index.html'; }, 2500);
