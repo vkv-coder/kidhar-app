@@ -7,7 +7,8 @@ let currentTab = null;
 function tabsForRole() {
   if (isAdmin()) return [
     { id: 'lookup', label: 'Lookup' },
-    { id: 'staff', label: 'Staff' }
+    { id: 'staff', label: 'Staff' },
+    { id: 'settings', label: 'Settings' }
   ];
   return [
     { id: 'checkin', label: 'Check In' }
@@ -29,6 +30,17 @@ function goTab(tabId) {
   if (tabId === 'checkin') renderCheckinPage(content);
   else if (tabId === 'lookup') renderLookupPage(content);
   else if (tabId === 'staff') renderStaffPage(content);
+  else if (tabId === 'settings') renderSettingsPage(content);
+}
+
+function openModal(html) {
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  document.getElementById('modal-box').innerHTML = '';
 }
 
 function initApp() {

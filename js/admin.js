@@ -94,7 +94,7 @@ async function runLookup() {
     <div class="list-item">
       <div>
         <div class="list-item-name">${escapeHtml(nameById[c.staff_id] || 'Unknown')}</div>
-        <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}</div>
+        <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} &middot; ${encodePlusCode(c.lat, c.lng)}</div>
       </div>
       <div class="list-item-actions">
         <a class="btn-secondary btn-sm" href="${mapsLink(c.lat, c.lng)}" target="_blank" rel="noopener">Open in Maps</a>
@@ -134,10 +134,129 @@ function renderStaffList(list, pending) {
       <div class="list-item-actions">
         ${pending
           ? `<button class="btn-accent btn-sm" onclick="setStaffActive('${p.id}', true)">Approve</button>`
-          : (p.role !== 'admin' ? `<button class="btn-danger btn-sm" onclick="setStaffActive('${p.id}', false)">Deactivate</button>` : '')}
+          : (p.role !== 'admin' ? `
+              <button class="btn-secondary btn-sm" onclick="openScheduleModal('${p.id}')">Schedule</button>
+              <button class="btn-danger btn-sm" onclick="setStaffActive('${p.id}', false)">Deactivate</button>
+            ` : '')}
       </div>
     </div>
   `).join('');
+}
+
+// ---------- Per-staff schedule (shift windows or rolling idle-hours) ----------
+
+let _scheduleStaffId = null;
+let _scheduleMode = 'none'; // 'none' | 'shift' | 'rolling'
+let _scheduleWindows = []; // [{start_time:'08:00', end_time:'10:00', grace_minutes:20}, ...]
+
+async function openScheduleModal(staffId) {
+  _scheduleStaffId = staffId;
+  const staff = _staffCache.find(p => p.id === staffId);
+  const { data: windows } = await db.from('stf_shift_windows').select('*').eq('staff_id', staffId).order('start_time');
+  _scheduleWindows = (windows || []).map(w => ({ start_time: w.start_time.slice(0, 5), end_time: w.end_time.slice(0, 5), grace_minutes: w.grace_minutes }));
+
+  if (_scheduleWindows.length > 0) _scheduleMode = 'shift';
+  else if (staff && staff.idle_alert_hours) _scheduleMode = 'rolling';
+  else _scheduleMode = 'none';
+
+  openModal(renderScheduleModalBody(staff));
+}
+
+function renderScheduleModalBody(staff) {
+  const idleHours = (staff && staff.idle_alert_hours) || '';
+  return `
+    <div class="modal-title">Schedule - ${escapeHtml(staff.name)}</div>
+    <div class="form-group">
+      <label>Alert Type</label>
+      <select id="sched-mode" onchange="onScheduleModeChange()">
+        <option value="none" ${_scheduleMode === 'none' ? 'selected' : ''}>No alerting</option>
+        <option value="shift" ${_scheduleMode === 'shift' ? 'selected' : ''}>Shift windows (entry/exit times)</option>
+        <option value="rolling" ${_scheduleMode === 'rolling' ? 'selected' : ''}>Continuous - tap every N hours</option>
+      </select>
+    </div>
+    <div id="sched-shift-section" style="display:${_scheduleMode === 'shift' ? 'block' : 'none'};">
+      <div id="sched-windows-list">${renderScheduleWindowsList()}</div>
+      <button class="btn-secondary btn-sm" style="margin-top:8px;" onclick="addScheduleWindow()">+ Add Window</button>
+    </div>
+    <div id="sched-rolling-section" class="form-group" style="display:${_scheduleMode === 'rolling' ? 'block' : 'none'};margin-top:12px;">
+      <label>Alert if no tap for (hours)</label>
+      <input type="number" id="sched-idle-hours" min="0.5" step="0.5" value="${idleHours}" placeholder="e.g. 2" />
+    </div>
+    <div class="error-msg" id="sched-error"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveSchedule()">Save</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  `;
+}
+
+function renderScheduleWindowsList() {
+  if (_scheduleWindows.length === 0) return `<p class="form-hint">No windows yet - tap "+ Add Window" below.</p>`;
+  return _scheduleWindows.map((w, i) => `
+    <div class="list-item" style="align-items:flex-end;">
+      <div class="form-group" style="flex:1;margin-bottom:0;">
+        <label>Start</label>
+        <input type="time" value="${w.start_time}" onchange="updateScheduleWindow(${i}, 'start_time', this.value)" />
+      </div>
+      <div class="form-group" style="flex:1;margin-bottom:0;">
+        <label>End</label>
+        <input type="time" value="${w.end_time}" onchange="updateScheduleWindow(${i}, 'end_time', this.value)" />
+      </div>
+      <div class="form-group" style="flex:1;margin-bottom:0;">
+        <label>Grace (min)</label>
+        <input type="number" min="0" value="${w.grace_minutes}" onchange="updateScheduleWindow(${i}, 'grace_minutes', this.value)" />
+      </div>
+      <button class="btn-danger btn-sm" onclick="removeScheduleWindow(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function onScheduleModeChange() {
+  _scheduleMode = document.getElementById('sched-mode').value;
+  document.getElementById('sched-shift-section').style.display = _scheduleMode === 'shift' ? 'block' : 'none';
+  document.getElementById('sched-rolling-section').style.display = _scheduleMode === 'rolling' ? 'block' : 'none';
+}
+
+function addScheduleWindow() {
+  _scheduleWindows.push({ start_time: '08:00', end_time: '10:00', grace_minutes: 20 });
+  document.getElementById('sched-windows-list').innerHTML = renderScheduleWindowsList();
+}
+
+function removeScheduleWindow(i) {
+  _scheduleWindows.splice(i, 1);
+  document.getElementById('sched-windows-list').innerHTML = renderScheduleWindowsList();
+}
+
+function updateScheduleWindow(i, field, value) {
+  _scheduleWindows[i][field] = field === 'grace_minutes' ? parseInt(value, 10) : value;
+}
+
+async function saveSchedule() {
+  const errEl = document.getElementById('sched-error');
+  errEl.textContent = '';
+
+  if (_scheduleMode === 'shift') {
+    for (const w of _scheduleWindows) {
+      if (!w.start_time || !w.end_time) { errEl.textContent = 'Every window needs a start and end time.'; return; }
+      if (w.end_time <= w.start_time) { errEl.textContent = 'Each window\'s end time must be after its start time.'; return; }
+    }
+    const { error } = await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify(_scheduleWindows) });
+    if (error) { errEl.textContent = error.message; return; }
+    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null });
+  } else if (_scheduleMode === 'rolling') {
+    const hours = parseFloat(document.getElementById('sched-idle-hours').value);
+    if (!hours || hours <= 0) { errEl.textContent = 'Enter hours greater than zero.'; return; }
+    const { error } = await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: hours });
+    if (error) { errEl.textContent = error.message; return; }
+    await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
+  } else {
+    await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
+    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null });
+  }
+
+  closeModal();
+  showToast('✅ Schedule saved!', 'success');
+  renderStaffPage(document.getElementById('page-content'));
 }
 
 async function setStaffActive(profileId, active) {

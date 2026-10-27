@@ -5,11 +5,13 @@ const SHELL_FILES = [
   '/privacy.html',
   '/css/style.css',
   '/js/config.js',
+  '/js/pluscode.js',
   '/js/auth.js',
   '/js/setup.js',
   '/js/app.js',
   '/js/checkin.js',
   '/js/admin.js',
+  '/js/settings.js',
   '/manifest.json'
 ];
 

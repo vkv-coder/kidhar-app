@@ -90,22 +90,58 @@ function assert(cond, msg) {
   const seenByAdmin = await select(adminAToken, 'stf_checkins', `select=*&staff_id=eq.${staffAProfileId}`);
   assert(seenByAdmin.length === 1, 'admin A sees exactly 1 check-in for staff A');
 
-  console.log('--- Company B: separate admin + staff, tenant isolation ---');
-  const adminBEmail = `stafftrack.admin.b.${ts}@example.com`;
-  await createConfirmedUser(adminBEmail, 'Test1234', 'Admin B');
-  const adminBToken = await signIn(adminBEmail, 'Test1234');
-  await rpc(adminBToken, 'stf_signup_create_company', { p_company_name: `Test Co B ${ts}`, p_admin_name: 'Admin B' });
+  console.log('--- Admin A sets a 50m zone around the earlier check-in point ---');
+  await rpc(adminAToken, 'stf_set_zone', { p_lat: 22.307, p_lng: 73.181, p_radius_m: 50 });
 
-  console.log('--- Admin B cannot see Company A profiles or check-ins ---');
-  const profilesSeenByB = await select(adminBToken, 'stf_profiles', `select=*&id=eq.${staffAProfileId}`);
+  console.log('--- Staff A checks in ~5m away (should succeed, inside zone) ---');
+  const insideCheckin = await rpc(staffAToken, 'stf_log_checkin', { p_lat: 22.30705, p_lng: 73.18101, p_accuracy_m: 8, p_note: null });
+  assert(insideCheckin && insideCheckin[0] && insideCheckin[0].checkin_id, 'check-in inside zone succeeds');
+
+  console.log('--- Staff A checks in ~1km away (should be blocked, outside zone) ---');
+  let blockedByZone = false;
+  try {
+    await rpc(staffAToken, 'stf_log_checkin', { p_lat: 22.316, p_lng: 73.181, p_accuracy_m: 8, p_note: null });
+  } catch (e) { blockedByZone = /outside the zone/.test(e.message); }
+  assert(blockedByZone, 'check-in far outside the zone is blocked with a clear message');
+
+  console.log('--- Admin A sets shift windows for Staff A ---');
+  await rpc(adminAToken, 'stf_set_shift_windows', {
+    p_staff_id: staffAProfileId,
+    p_windows: [{ start_time: '08:00', end_time: '10:00', grace_minutes: 20 }, { start_time: '17:00', end_time: '19:00', grace_minutes: 20 }]
+  });
+  const windows = await select(adminAToken, 'stf_shift_windows', `select=*&staff_id=eq.${staffAProfileId}&order=start_time`);
+  assert(windows.length === 2, 'both shift windows were saved');
+
+  console.log('--- A separate Company B admin cannot read Company A staff shift windows ---');
+  const adminBEmailEarly = `stafftrack.admin.b.${ts}@example.com`;
+  await createConfirmedUser(adminBEmailEarly, 'Test1234', 'Admin B');
+  const adminBTokenEarly = await signIn(adminBEmailEarly, 'Test1234');
+  await rpc(adminBTokenEarly, 'stf_signup_create_company', { p_company_name: `Test Co B ${ts}`, p_admin_name: 'Admin B' });
+  const windowsSeenByB = await select(adminBTokenEarly, 'stf_shift_windows', `select=*&staff_id=eq.${staffAProfileId}`);
+  assert(windowsSeenByB.length === 0, "admin B cannot read company A's shift windows");
+
+  console.log('--- Switching Staff A to rolling idle-hours mode clears shift windows ---');
+  await rpc(adminAToken, 'stf_set_idle_alert_hours', { p_staff_id: staffAProfileId, p_hours: 2 });
+  await rpc(adminAToken, 'stf_set_shift_windows', { p_staff_id: staffAProfileId, p_windows: [] });
+  const windowsAfter = await select(adminAToken, 'stf_shift_windows', `select=*&staff_id=eq.${staffAProfileId}`);
+  assert(windowsAfter.length === 0, 'shift windows cleared after switching to rolling mode');
+  const profileAfter = await select(adminAToken, 'stf_profiles', `select=idle_alert_hours&id=eq.${staffAProfileId}`);
+  assert(profileAfter[0].idle_alert_hours === 2, 'idle_alert_hours set to 2');
+
+  console.log('--- Admin A generates a Telegram link code ---');
+  const linkCode = await rpc(adminAToken, 'stf_generate_telegram_link_code', {});
+  assert(typeof linkCode === 'string' && linkCode.length === 6, 'got a 6-character link code');
+
+  console.log('--- Admin B (from Company A isolation setup above) cannot see Company A profiles or check-ins ---');
+  const profilesSeenByB = await select(adminBTokenEarly, 'stf_profiles', `select=*&id=eq.${staffAProfileId}`);
   assert(profilesSeenByB.length === 0, "admin B cannot read company A's staff profile");
 
-  const checkinsSeenByB = await select(adminBToken, 'stf_checkins', `select=*&staff_id=eq.${staffAProfileId}`);
+  const checkinsSeenByB = await select(adminBTokenEarly, 'stf_checkins', `select=*&staff_id=eq.${staffAProfileId}`);
   assert(checkinsSeenByB.length === 0, "admin B cannot read company A's check-ins");
 
   console.log("--- Staff A cannot see another staff member's check-ins (self-only) ---");
   const checkinsSeenByStaffA = await select(staffAToken, 'stf_checkins', 'select=*');
-  assert(checkinsSeenByStaffA.length === 1, 'staff A sees only their own 1 check-in, not company-wide');
+  assert(checkinsSeenByStaffA.length === 2, 'staff A sees only their own 2 check-ins (the blocked zone attempt was never inserted), not company-wide');
 
   console.log('\nALL SMOKE TESTS PASSED');
 })().catch(e => { console.error('SMOKE TEST FAILURE:', e.message); process.exit(1); });
