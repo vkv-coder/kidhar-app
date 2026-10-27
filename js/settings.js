@@ -100,12 +100,12 @@ async function generateTelegramCode() {
   if (error) { showToast(error.message, 'error'); return; }
   const box = document.getElementById('telegram-code-box');
   if (!box) return;
+  const deepLink = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${encodeURIComponent(data)}`;
   box.innerHTML = `
     <div class="card" style="background:var(--bg);">
-      <p style="font-size:14px;">1. Open <a href="https://t.me/${TELEGRAM_BOT_USERNAME}" target="_blank" rel="noopener">@${TELEGRAM_BOT_USERNAME}</a> in Telegram<br>
-      2. Send this message to it:</p>
-      <p style="font-size:22px;font-weight:800;letter-spacing:2px;text-align:center;color:var(--primary);margin:10px 0;">${escapeHtml(data)}</p>
-      <p class="form-hint">You'll get a reply confirming you're connected - come back to this page after.</p>
+      <a class="btn-primary" style="display:block;text-align:center;text-decoration:none;" href="${deepLink}" target="_blank" rel="noopener">Tap to Connect on Telegram</a>
+      <p class="form-hint" style="margin-top:10px;">This opens Telegram - just tap "Start" there. You'll get a reply confirming you're connected, then come back here.</p>
+      <p class="form-hint">If the button doesn't work, open Telegram yourself, search for <strong>@${escapeHtml(TELEGRAM_BOT_USERNAME)}</strong>, and send it this code: <strong>${escapeHtml(data)}</strong></p>
     </div>
   `;
 }

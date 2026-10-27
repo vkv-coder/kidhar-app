@@ -13,8 +13,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // deliver mail to foo+anything@gmail.com straight to foo@gmail.com) so each
 // app gets its own independent account/password on the same inbox, without
 // the user ever having to type or remember a tag themselves.
-// Set once the Telegram bot exists (see Settings > Telegram Alerts).
-const TELEGRAM_BOT_USERNAME = '';
+const TELEGRAM_BOT_USERNAME = 'kidharalertsbot';
 
 const APP_EMAIL_TAG = 'kidhar';
 function tagEmail(rawEmail) {

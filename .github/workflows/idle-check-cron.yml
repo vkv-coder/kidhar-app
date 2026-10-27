@@ -1,0 +1,23 @@
+name: Kidhar idle/shift check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  idle-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call kidhar-idle-check Edge Function
+        run: |
+          resp=$(curl -s -w "\n%{http_code}" \
+            "https://wrzpgultvahxbrgooibn.supabase.co/functions/v1/kidhar-idle-check" \
+            -H "X-Cron-Secret: ${{ secrets.KIDHAR_CRON_SECRET }}")
+          body=$(echo "$resp" | head -n -1)
+          status=$(echo "$resp" | tail -n1)
+          echo "Response: $body (HTTP $status)"
+          if [ "$status" -ge 300 ]; then
+            echo "idle-check call failed"
+            exit 1
+          fi
