@@ -94,7 +94,7 @@ async function runLookup() {
     <div class="list-item">
       <div>
         <div class="list-item-name">${escapeHtml(nameById[c.staff_id] || 'Unknown')}</div>
-        <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} &middot; ${encodePlusCode(c.lat, c.lng)}</div>
+        <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} &middot; ${encodePlusCode(c.lat, c.lng)}${c.matched_zone_name ? ' &middot; ' + escapeHtml(c.matched_zone_name) : ''}</div>
       </div>
       <div class="list-item-actions">
         <a class="btn-secondary btn-sm" href="${mapsLink(c.lat, c.lng)}" target="_blank" rel="noopener">Open in Maps</a>
