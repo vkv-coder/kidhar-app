@@ -164,6 +164,8 @@ async function openScheduleModal(staffId) {
 
 function renderScheduleModalBody(staff) {
   const idleHours = (staff && staff.idle_alert_hours) || '';
+  const activeStart = (staff && staff.idle_active_start) ? staff.idle_active_start.slice(0, 5) : '09:00';
+  const activeEnd = (staff && staff.idle_active_end) ? staff.idle_active_end.slice(0, 5) : '19:00';
   return `
     <div class="modal-title">Schedule - ${escapeHtml(staff.name)}</div>
     <div class="form-group">
@@ -178,9 +180,19 @@ function renderScheduleModalBody(staff) {
       <div id="sched-windows-list">${renderScheduleWindowsList()}</div>
       <button class="btn-secondary btn-sm" style="margin-top:8px;" onclick="addScheduleWindow()">+ Add Window</button>
     </div>
-    <div id="sched-rolling-section" class="form-group" style="display:${_scheduleMode === 'rolling' ? 'block' : 'none'};margin-top:12px;">
-      <label>Alert if no tap for (hours)</label>
-      <input type="number" id="sched-idle-hours" min="0.5" step="0.5" value="${idleHours}" placeholder="e.g. 2" />
+    <div id="sched-rolling-section" style="display:${_scheduleMode === 'rolling' ? 'block' : 'none'};margin-top:12px;">
+      <div class="form-group">
+        <label>Alert if no tap for (hours)</label>
+        <input type="number" id="sched-idle-hours" min="0.5" step="0.5" value="${idleHours}" placeholder="e.g. 2" />
+      </div>
+      <div class="form-group">
+        <label>Only check between (so it never alerts overnight)</label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="time" id="sched-idle-active-start" value="${activeStart}" style="flex:1;" />
+          <span>to</span>
+          <input type="time" id="sched-idle-active-end" value="${activeEnd}" style="flex:1;" />
+        </div>
+      </div>
     </div>
     <div class="error-msg" id="sched-error"></div>
     <div class="modal-actions">
@@ -242,16 +254,20 @@ async function saveSchedule() {
     }
     const { error } = await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify(_scheduleWindows) });
     if (error) { errEl.textContent = error.message; return; }
-    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null });
+    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null, p_active_start: null, p_active_end: null });
   } else if (_scheduleMode === 'rolling') {
     const hours = parseFloat(document.getElementById('sched-idle-hours').value);
+    const activeStart = document.getElementById('sched-idle-active-start').value;
+    const activeEnd = document.getElementById('sched-idle-active-end').value;
     if (!hours || hours <= 0) { errEl.textContent = 'Enter hours greater than zero.'; return; }
-    const { error } = await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: hours });
+    if (!activeStart || !activeEnd) { errEl.textContent = 'Set the active hours range.'; return; }
+    if (activeEnd <= activeStart) { errEl.textContent = 'The "to" time must be after the "between" time.'; return; }
+    const { error } = await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: hours, p_active_start: activeStart, p_active_end: activeEnd });
     if (error) { errEl.textContent = error.message; return; }
     await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
   } else {
     await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
-    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null });
+    await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null, p_active_start: null, p_active_end: null });
   }
 
   closeModal();
