@@ -4,9 +4,8 @@
 
 let _requirePhoto = false;
 
-async function renderCheckinPage(container) {
-  const { data: company } = await db.from('stf_companies').select('require_photo').eq('id', currentProfile.company_id).single();
-  _requirePhoto = !!(company && company.require_photo);
+function renderCheckinPage(container) {
+  _requirePhoto = !!currentProfile.require_photo;
 
   container.innerHTML = `
     <div class="card" style="text-align:center;">

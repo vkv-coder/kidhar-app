@@ -199,6 +199,12 @@ function renderScheduleModalBody(staff) {
         </div>
       </div>
     </div>
+    <div class="form-group" style="margin-top:12px;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;">
+        <input type="checkbox" id="sched-require-photo" ${staff && staff.require_photo ? 'checked' : ''} style="width:18px;height:18px;" />
+        <span style="font-weight:normal;">Require a selfie-style photo on this staff member's check-ins</span>
+      </label>
+    </div>
     <div class="error-msg" id="sched-error"></div>
     <div class="modal-actions">
       <button class="btn-primary" onclick="saveSchedule()">Save</button>
@@ -274,6 +280,10 @@ async function saveSchedule() {
     await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
     await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null, p_active_start: null, p_active_end: null });
   }
+
+  const requirePhoto = document.getElementById('sched-require-photo').checked;
+  const { error: photoError } = await db.rpc('stf_set_staff_require_photo', { p_staff_id: _scheduleStaffId, p_require: requirePhoto });
+  if (photoError) { errEl.textContent = photoError.message; return; }
 
   closeModal();
   showToast('✅ Schedule saved!', 'success');

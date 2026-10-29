@@ -10,7 +10,6 @@ async function renderSettingsPage(container) {
   container.innerHTML = `<div class="card"><p>Loading...</p></div>`;
 
   const { data: zones } = await db.from('stf_zones').select('*').order('created_at');
-  const { data: company } = await db.from('stf_companies').select('require_photo').eq('id', currentProfile.company_id).single();
 
   container.innerHTML = `
     <div class="card">
@@ -22,15 +21,6 @@ async function renderSettingsPage(container) {
       </p>
       <div id="zones-list">${renderZonesList(zones || [])}</div>
       <button class="btn-primary" style="margin-top:12px;" onclick="openZoneModal()">+ Add Zone</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Check-In Photo</div>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-        <input type="checkbox" id="require-photo-toggle" ${company && company.require_photo ? 'checked' : ''} onchange="toggleRequirePhoto()" style="width:18px;height:18px;" />
-        <span>Require a selfie-style photo on every check-in</span>
-      </label>
-      <p class="form-hint" style="margin-top:8px;">Opens the phone's own camera, already facing the staff member - no separate app needed.</p>
     </div>
 
     <div class="card">
@@ -99,17 +89,6 @@ async function openZoneModal(zoneId) {
 
 function previewText(lat, lng) {
   return 'Location: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' (' + encodePlusCode(lat, lng) + ')';
-}
-
-async function toggleRequirePhoto() {
-  const checked = document.getElementById('require-photo-toggle').checked;
-  const { error } = await db.rpc('stf_set_require_photo', { p_require: checked });
-  if (error) {
-    showToast(error.message, 'error');
-    document.getElementById('require-photo-toggle').checked = !checked;
-    return;
-  }
-  showToast(checked ? '✅ Photo required at check-in.' : 'Photo no longer required.', 'success');
 }
 
 function renderTelegramCard() {
