@@ -264,7 +264,7 @@ async function saveSchedule() {
         if (!w.start_time || !w.end_time) { errEl.textContent = 'Every window needs a start and end time.'; return; }
         if (w.end_time <= w.start_time) { errEl.textContent = 'Each window\'s end time must be after its start time.'; return; }
       }
-      const { error } = await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify(_scheduleWindows) });
+      const { error } = await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: _scheduleWindows });
       if (error) { errEl.textContent = error.message; return; }
       await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null, p_active_start: null, p_active_end: null });
     } else if (_scheduleMode === 'rolling') {
@@ -276,9 +276,9 @@ async function saveSchedule() {
       if (activeEnd <= activeStart) { errEl.textContent = 'The "to" time must be after the "between" time.'; return; }
       const { error } = await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: hours, p_active_start: activeStart, p_active_end: activeEnd });
       if (error) { errEl.textContent = error.message; return; }
-      await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
+      await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: [] });
     } else {
-      await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: JSON.stringify([]) });
+      await db.rpc('stf_set_shift_windows', { p_staff_id: _scheduleStaffId, p_windows: [] });
       await db.rpc('stf_set_idle_alert_hours', { p_staff_id: _scheduleStaffId, p_hours: null, p_active_start: null, p_active_end: null });
     }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kidhar-v3';
+const CACHE_NAME = 'kidhar-v4';
 const SHELL_FILES = [
   '/index.html',
   '/signup.html',
