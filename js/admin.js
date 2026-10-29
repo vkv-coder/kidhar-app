@@ -92,15 +92,20 @@ async function runLookup() {
   const nameById = Object.fromEntries(_staffCache.map(p => [p.id, p.name]));
   resultsEl.innerHTML = data.map(c => `
     <div class="list-item">
-      <div>
-        <div class="list-item-name">${escapeHtml(nameById[c.staff_id] || 'Unknown')}</div>
-        <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} &middot; ${encodePlusCode(c.lat, c.lng)}${c.matched_zone_name ? ' &middot; ' + escapeHtml(c.matched_zone_name) : ''}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${c.photo_path ? `<img class="checkin-thumb" id="thumb-${c.id}" alt="Check-in photo" />` : ''}
+        <div>
+          <div class="list-item-name">${escapeHtml(nameById[c.staff_id] || 'Unknown')}</div>
+          <div class="list-item-sub">${formatDateTime(c.captured_at)} &middot; ${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} &middot; ${encodePlusCode(c.lat, c.lng)}${c.matched_zone_name ? ' &middot; ' + escapeHtml(c.matched_zone_name) : ''}</div>
+        </div>
       </div>
       <div class="list-item-actions">
         <a class="btn-secondary btn-sm" href="${mapsLink(c.lat, c.lng)}" target="_blank" rel="noopener">Open in Maps</a>
       </div>
     </div>
   `).join('');
+
+  data.filter(c => c.photo_path).forEach(c => loadCheckinThumb(c.id, c.photo_path));
 }
 
 async function renderStaffPage(container) {
