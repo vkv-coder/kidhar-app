@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kidhar-v4';
+const CACHE_NAME = 'kidhar-v5';
 const SHELL_FILES = [
   '/index.html',
   '/signup.html',
@@ -51,5 +51,30 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let data = { title: '📍 Kidhar', body: 'Time to check in.' };
+  try { if (event.data) data = event.data.json(); } catch (e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      vibrate: [200, 100, 200],
+      tag: 'kidhar-reminder',
+      renotify: true
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      return clients.openWindow('/index.html');
+    })
   );
 });

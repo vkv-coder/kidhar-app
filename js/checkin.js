@@ -21,12 +21,67 @@ function renderCheckinPage(container) {
       </button>
       <div class="error-msg" id="checkin-error"></div>
     </div>
+    <div class="card" id="reminders-card"></div>
     <div class="card">
       <div class="section-header"><h3>Your Recent Check-Ins</h3></div>
       <div id="my-checkins-list"><div class="empty-state"><p>Loading...</p></div></div>
     </div>
   `;
+  renderRemindersCard();
   loadMyCheckins();
+}
+
+function renderRemindersCard() {
+  const el = document.getElementById('reminders-card');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    el.innerHTML = `<p class="form-hint">Check-in reminders aren't supported on this browser.</p>`;
+    return;
+  }
+  if (currentProfile.push_endpoint) {
+    el.innerHTML = `<p style="color:var(--success);font-weight:600;">🔔 Reminders enabled on this device</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <button class="btn-secondary" style="width:100%;" onclick="enableReminders()">🔔 Enable Check-In Reminders</button>
+    <p class="form-hint" style="margin-top:8px;">Get a buzz on this phone when it's time to check in (only if your admin has set a schedule for you).</p>
+    <div class="error-msg" id="reminders-error"></div>
+  `;
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function enableReminders() {
+  const errEl = document.getElementById('reminders-error');
+  errEl.textContent = '';
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      errEl.textContent = 'Notification permission was denied. Enable it in your browser settings to get reminders.';
+      return;
+    }
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const json = subscription.toJSON();
+    const { error } = await db.rpc('stf_set_push_subscription', {
+      p_endpoint: json.endpoint,
+      p_p256dh: json.keys.p256dh,
+      p_auth: json.keys.auth
+    });
+    if (error) { errEl.textContent = error.message; return; }
+    currentProfile.push_endpoint = json.endpoint;
+    showToast('✅ Reminders enabled!', 'success');
+    renderRemindersCard();
+  } catch (e) {
+    errEl.textContent = 'Could not enable reminders: ' + e.message;
+  }
 }
 
 function doCheckin() {

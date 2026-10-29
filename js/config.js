@@ -15,6 +15,10 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // the user ever having to type or remember a tag themselves.
 const TELEGRAM_BOT_USERNAME = 'kidharalertsbot';
 
+// Public VAPID key for Web Push (safe to be public - this is the
+// counterpart to a server-only private key, same role as a public cert).
+const VAPID_PUBLIC_KEY = 'BDtEjbNTyiub_ouOBBv9AYX6JuMQGYP3BlS0JZqga4PF9A4ruf8AWcbPafgj0bTWyZ8JrcvuvZmInm41TaZI9-w';
+
 const APP_EMAIL_TAG = 'kidhar';
 function tagEmail(rawEmail) {
   const email = (rawEmail || '').trim();
