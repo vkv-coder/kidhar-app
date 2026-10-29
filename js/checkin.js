@@ -99,17 +99,19 @@ async function proceedCheckin(photoFile) {
       }
 
       btn.textContent = 'Saving...';
-      const { error } = await db.rpc('stf_log_checkin', {
-        p_lat: latitude, p_lng: longitude, p_accuracy_m: accuracy, p_note: null, p_photo_path: photoPath
-      });
-      btn.disabled = false;
-      btn.textContent = '📍 Share My Location Now';
-      if (error) {
-        errEl.textContent = error.message;
-        return;
+      try {
+        const { error } = await db.rpc('stf_log_checkin', {
+          p_lat: latitude, p_lng: longitude, p_accuracy_m: accuracy, p_note: null, p_photo_path: photoPath
+        });
+        if (error) { errEl.textContent = error.message; return; }
+        showToast('✅ Location shared!', 'success');
+        loadMyCheckins();
+      } catch (e) {
+        errEl.textContent = 'Network error - check your connection and try again.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📍 Share My Location Now';
       }
-      showToast('✅ Location shared!', 'success');
-      loadMyCheckins();
     },
     (geoErr) => {
       btn.disabled = false;
