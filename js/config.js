@@ -7,6 +7,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable_eaTIKWQ1QAI1E07kZaiGTA_dfWDyQTs';
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Edge function backing PIN-based staff login/creation (no email needed).
+const PIN_AUTH_URL = `${SUPABASE_URL}/functions/v1/kidhar-pin-auth`;
+
 // Auth on this project is shared across many apps on the same Supabase
 // instance, so the same bare email can only ever have one password total.
 // We silently tag the local part with +kidhar (Gmail and most providers

@@ -120,7 +120,7 @@ async function renderStaffPage(container) {
       <div id="pending-list">${renderStaffList(pending, true)}</div>
     </div>
     <div class="card">
-      <div class="section-header"><h3>Active Team</h3></div>
+      <div class="section-header"><h3>Active Team</h3><button class="btn-secondary btn-sm" onclick="openAddPinStaffModal()">+ Add Staff (PIN)</button></div>
       <div id="active-list">${renderStaffList(active, false)}</div>
     </div>
   `;
@@ -142,6 +142,7 @@ function renderStaffList(list, pending) {
           : (p.role !== 'admin' ? `
               <button class="btn-secondary btn-sm" onclick="openScheduleModal('${p.id}')">Schedule</button>
               <button class="btn-secondary btn-sm" onclick="openTaskModal('${p.id}')">+ Task</button>
+              <button class="btn-secondary btn-sm" onclick="openSetPinModal('${p.id}')">${p.pin ? 'Change' : 'Set'} PIN</button>
               <button class="btn-danger btn-sm" onclick="setStaffActive('${p.id}', false)">Deactivate</button>
             ` : '')}
       </div>
@@ -385,5 +386,94 @@ async function setStaffActive(profileId, active) {
   const { error } = await db.rpc('stf_admin_set_active', { p_profile_id: profileId, p_active: active });
   if (error) { showToast(error.message, 'error'); return; }
   showToast(active ? 'Approved!' : 'Deactivated.', 'success');
+  renderStaffPage(document.getElementById('page-content'));
+}
+
+// ---------- PIN-based staff (no email needed, e.g. peons) ----------
+
+function openAddPinStaffModal() {
+  openModal(`
+    <div class="modal-title">Add Staff with PIN</div>
+    <p class="form-hint">For staff without an email address. They'll skip sign-up entirely and log in by just entering this PIN.</p>
+    <div class="form-group">
+      <label>Staff Name</label>
+      <input type="text" id="pinstaff-name" placeholder="e.g. Ramesh" />
+    </div>
+    <div class="form-group">
+      <label>PIN (at least 6 characters, letters/numbers)</label>
+      <input type="text" id="pinstaff-pin" placeholder="e.g. ramesh123" />
+    </div>
+    <div class="error-msg" id="pinstaff-error"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="createPinStaff()">Add Staff</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function createPinStaff() {
+  const errEl = document.getElementById('pinstaff-error');
+  errEl.textContent = '';
+  const name = document.getElementById('pinstaff-name').value.trim();
+  const pin = document.getElementById('pinstaff-pin').value.trim();
+  if (!name) { errEl.textContent = 'Staff name is required.'; return; }
+  if (pin.length < 6) { errEl.textContent = 'PIN must be at least 6 characters.'; return; }
+
+  const { data: sessionData } = await db.auth.getSession();
+  const adminToken = sessionData?.session?.access_token;
+  if (!adminToken) { errEl.textContent = 'Session expired. Please log in again.'; return; }
+
+  let res, result;
+  try {
+    res = await fetch(PIN_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ action: 'create_staff', admin_token: adminToken, name, pin }),
+    });
+    result = await res.json();
+  } catch (e) {
+    errEl.textContent = 'Network error - check your connection and try again.';
+    return;
+  }
+  if (!res.ok) { errEl.textContent = result.error || 'Could not add staff.'; return; }
+
+  closeModal();
+  showToast(`✅ ${name} added! Give them their PIN to log in.`, 'success');
+  renderStaffPage(document.getElementById('page-content'));
+}
+
+function openSetPinModal(staffId) {
+  const staff = _staffCache.find(p => p.id === staffId);
+  openModal(`
+    <div class="modal-title">${staff.pin ? 'Change' : 'Set'} PIN - ${escapeHtml(staff.name)}</div>
+    <p class="form-hint">Lets this staff member log in with just a PIN, no email needed.</p>
+    <div class="form-group">
+      <label>PIN (at least 6 characters, letters/numbers)</label>
+      <input type="text" id="setpin-value" placeholder="e.g. ramesh123" />
+    </div>
+    <div class="error-msg" id="setpin-error"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="saveStaffPin('${staffId}')">Save</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function saveStaffPin(staffId) {
+  const errEl = document.getElementById('setpin-error');
+  errEl.textContent = '';
+  const pin = document.getElementById('setpin-value').value.trim();
+  if (pin.length < 6) { errEl.textContent = 'PIN must be at least 6 characters.'; return; }
+
+  const { error } = await db.rpc('stf_admin_set_staff_pin', { p_staff_id: staffId, p_pin: pin });
+  if (error) {
+    errEl.textContent = error.message.includes('duplicate') || error.message.includes('unique')
+      ? 'That PIN is already in use - try a different one.'
+      : error.message;
+    return;
+  }
+
+  closeModal();
+  showToast('✅ PIN saved!', 'success');
   renderStaffPage(document.getElementById('page-content'));
 }

@@ -39,6 +39,35 @@
       <a href="signup.html?as=admin" class="btn-secondary" style="flex:1;text-align:center;text-decoration:none;display:block;padding:11px 8px;font-size:12.5px;">👔 Admin<br><span style="font-weight:400;font-size:11px;">Start a new company</span></a>
       <a href="signup.html?as=staff" class="btn-secondary" style="flex:1;text-align:center;text-decoration:none;display:block;padding:11px 8px;font-size:12.5px;">🧑‍💼 Staff<br><span style="font-weight:400;font-size:11px;">Join your company</span></a>
     </div>
+    <p style="text-align:center;margin-top:14px;font-size:13px;">
+      <a href="javascript:void(0)" onclick="showPinLogin()" style="color:var(--primary);">No email? Log in with your PIN</a>
+    </p>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted);">Support: info.anyapps@gmail.com</p>
+  </div>
+  <div class="app-footer">
+    <div class="footer-links"><a href="privacy.html">Privacy Policy</a></div>
+    <p class="support-line">Questions? <a href="mailto:info.anyapps@gmail.com">info.anyapps@gmail.com</a></p>
+    <p class="powered-by">Powered by <a href="https://anyapps.in" target="_blank" rel="noopener" class="anyapps-badge">Any<span class="accent">Apps</span>.in</a></p>
+  </div>
+</div>
+
+<!-- PIN login screen (staff with no email) -->
+<div id="pin-login-screen" style="display:none;">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-icon">📍</div>
+      <h1>Kidhar</h1>
+      <div class="subtitle">Staff PIN Login</div>
+    </div>
+    <div class="form-group">
+      <label>Your PIN</label>
+      <input type="text" id="pin-login-input" inputmode="numeric" autocomplete="off" placeholder="Enter the PIN your admin gave you" />
+    </div>
+    <button class="btn-primary" onclick="loginWithPin()">Log In</button>
+    <div class="error-msg" id="pin-login-error"></div>
+    <p style="text-align:center;margin-top:16px;font-size:13px;">
+      <a href="javascript:void(0)" onclick="hidePinLogin()" style="color:var(--primary);">Back to email login</a>
+    </p>
     <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted);">Support: info.anyapps@gmail.com</p>
   </div>
   <div class="app-footer">
@@ -160,6 +189,9 @@
 <script>
 document.getElementById('login-password').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') login();
+});
+document.getElementById('pin-login-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') loginWithPin();
 });
 </script>
 </body>

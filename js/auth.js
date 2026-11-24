@@ -53,10 +53,62 @@ async function logout() {
   currentUser = null;
   currentProfile = null;
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('pin-login-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
+}
+
+function showPinLogin() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('pin-login-screen').style.display = 'flex';
+  document.getElementById('pin-login-error').textContent = '';
+  document.getElementById('pin-login-input').value = '';
+}
+
+function hidePinLogin() {
+  document.getElementById('pin-login-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function loginWithPin() {
+  const pin = document.getElementById('pin-login-input').value.trim();
+  const errEl = document.getElementById('pin-login-error');
+  errEl.textContent = '';
+
+  if (!pin) { errEl.textContent = 'Please enter your PIN.'; return; }
+
+  let res, result;
+  try {
+    res = await fetch(PIN_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ action: 'login', pin }),
+    });
+    result = await res.json();
+  } catch (e) {
+    errEl.textContent = 'Network error - check your connection and try again.';
+    return;
+  }
+  if (!res.ok) { errEl.textContent = result.error || 'Incorrect PIN.'; return; }
+
+  const { data, error } = await db.auth.verifyOtp({ type: 'magiclink', token_hash: result.token_hash });
+  if (error || !data.session) { errEl.textContent = error?.message || 'Could not start session. Try again.'; return; }
+
+  currentUser = data.session.user;
+  await loadProfile();
+  if (!currentProfile || !currentProfile.active) {
+    errEl.textContent = 'Account error. Contact your admin.';
+    await db.auth.signOut();
+    currentUser = null;
+    currentProfile = null;
+    return;
+  }
+
+  document.getElementById('pin-login-screen').style.display = 'none';
+  showMainApp();
+  initApp();
 }
 
 function showMainApp() {
