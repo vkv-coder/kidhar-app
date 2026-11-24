@@ -188,7 +188,26 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ checked: overdue.length, sent, companyApprovalsSent, staffApprovalsSent, tasksSent }), {
+  // ── Tasks that were alerted as missed and have since been checked in -
+  // a one-time "they reached" ping so the admin doesn't have to keep
+  // reopening the app to find out. Ordinary on-time completions stay
+  // silent - nothing was ever alerted for those. ──
+  let tasksResolvedSent = 0;
+  const resolvedTasks: { task_id: string; staff_name: string; label: string | null; due_at: string; admin_chat_id: string }[] =
+    (await callRpc('stf_find_resolved_tasks', {})) || [];
+  for (const t of resolvedTasks) {
+    const what = t.label ? `"${t.label}"` : 'their assigned task';
+    const ok = await sendTelegramMessage(
+      t.admin_chat_id,
+      `✅ ${t.staff_name} has now checked in for ${what} (previously reported overdue).`
+    );
+    if (ok) {
+      await callRpc('stf_mark_task_resolved_notified', { p_task_id: t.task_id });
+      tasksResolvedSent++;
+    }
+  }
+
+  return new Response(JSON.stringify({ checked: overdue.length, sent, companyApprovalsSent, staffApprovalsSent, tasksSent, tasksResolvedSent }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

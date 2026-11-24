@@ -346,15 +346,20 @@ async function openTaskModal(staffId) {
 }
 
 async function renderTaskModalBody(staff) {
+  const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data: tasks } = await db.from('stf_tasks')
-    .select('id,label,due_at,grace_minutes,alerted_at')
+    .select('id,label,due_at,grace_minutes,created_at,alerted_at')
     .eq('staff_id', _taskStaffId)
-    .gte('due_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+    .gte('due_at', sinceIso)
     .order('due_at');
+  const { data: checkins } = await db.from('stf_checkins')
+    .select('captured_at')
+    .eq('staff_id', _taskStaffId)
+    .gte('captured_at', sinceIso);
   return `
     <div class="modal-title">One-Time Task - ${escapeHtml(staff.name)}</div>
     <p class="form-hint">For a single deadline (e.g. "reach by 3pm today"), separate from any recurring schedule set above - a staff member can have both.</p>
-    <div id="task-list">${renderTaskList(tasks || [])}</div>
+    <div id="task-list">${renderTaskList(tasks || [], checkins || [])}</div>
     <div class="form-group" style="margin-top:14px;">
       <label>What / where (optional)</label>
       <input type="text" id="task-label" placeholder="e.g. Reach client site" />
@@ -375,17 +380,23 @@ async function renderTaskModalBody(staff) {
   `;
 }
 
-function renderTaskList(tasks) {
+function renderTaskList(tasks, checkins) {
   if (!tasks.length) return `<p class="form-hint">No upcoming/recent tasks.</p>`;
-  return tasks.map(t => `
-    <div class="list-item">
-      <div>
-        <div class="list-item-name">${escapeHtml(t.label || 'Task')}</div>
-        <div class="list-item-sub">By ${new Date(t.due_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}${t.alerted_at ? ' · ⚠️ missed, you were notified' : ''}</div>
+  return tasks.map(t => {
+    const completed = checkins.some(c => new Date(c.captured_at) >= new Date(t.created_at));
+    let statusHtml = '';
+    if (completed) statusHtml = ' · <span style="color:#2E7D32;font-weight:600;">✅ Completed</span>';
+    else if (t.alerted_at) statusHtml = ' · <span style="color:#D32F2F;font-weight:600;">⚠️ Missed, you were notified</span>';
+    return `
+      <div class="list-item">
+        <div>
+          <div class="list-item-name">${escapeHtml(t.label || 'Task')}</div>
+          <div class="list-item-sub">By ${new Date(t.due_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}${statusHtml}</div>
+        </div>
+        <button class="btn-danger btn-sm" onclick="deleteTask('${t.id}')">✕</button>
       </div>
-      <button class="btn-danger btn-sm" onclick="deleteTask('${t.id}')">✕</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function createTask() {
