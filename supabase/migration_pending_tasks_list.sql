@@ -5,11 +5,18 @@
 -- which "reach by" tasks nobody has checked in for yet - without having
 -- to open each staff member's task modal one by one.
 --
--- "Pending" = no check-in logged yet in the task's valid window (same
--- satisfied-check stf_find_overdue_tasks already uses). Limited to the
--- last 2 days so long-abandoned tasks the admin never cleaned up don't
--- clutter this list forever - they're still visible/deletable from the
--- per-staff task modal.
+-- "Pending" = staff hasn't checked in at all since the task was assigned,
+-- at any point up to now - deliberately NOT capped at due_at+grace like
+-- stf_find_overdue_tasks' alert-firing check is. That cap exists there so
+-- the "you were missed" alert still fires right at the deadline instead
+-- of waiting forever for a check-in that may never come; here, a LATE
+-- check-in should still clear the task off this list (staff did
+-- eventually reach, just late), rather than showing "Overdue" forever
+-- even after they've tapped in.
+--
+-- Limited to the last 2 days so long-abandoned tasks the admin never
+-- cleaned up don't clutter this list forever - they're still
+-- visible/deletable from the per-staff task modal.
 -- ==========================================
 
 create or replace function stf_list_pending_tasks()
@@ -30,7 +37,6 @@ begin
       select 1 from stf_checkins c
       where c.staff_id = t.staff_id
         and c.captured_at >= t.created_at
-        and c.captured_at <= t.due_at + (t.grace_minutes || ' minutes')::interval
     )
   order by t.due_at;
 end;
