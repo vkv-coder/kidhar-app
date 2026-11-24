@@ -43,10 +43,21 @@ function closeModal() {
   document.getElementById('modal-box').innerHTML = '';
 }
 
-function initApp() {
+async function initApp() {
   document.getElementById('user-role-badge').textContent = currentProfile.role === 'admin' ? 'Admin' : 'Staff';
   const tabs = tabsForRole();
   goTab(tabs[0].id);
+  loadCompanyNameBadge();
+}
+
+async function loadCompanyNameBadge() {
+  const badge = document.getElementById('company-name-badge');
+  if (!badge) return;
+  const { data } = await db.from('stf_companies').select('name').eq('id', currentProfile.company_id).maybeSingle();
+  const parts = [];
+  if (data?.name) parts.push(data.name);
+  if (currentProfile.name) parts.push(currentProfile.name);
+  badge.textContent = parts.join(' · ');
 }
 
 function showToast(msg, type) {

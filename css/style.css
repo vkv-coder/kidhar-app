@@ -72,7 +72,9 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
+.app-title-group { display: flex; flex-direction: column; min-width: 0; }
 .app-title { font-size: 17px; font-weight: 700; }
+.company-name { font-size: 11.5px; font-weight: 500; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55vw; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 
 .role-badge {
