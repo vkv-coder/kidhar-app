@@ -168,7 +168,27 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ checked: overdue.length, sent, companyApprovalsSent, staffApprovalsSent }), {
+  // ── One-time tasks past their deadline+grace with no check-in logged.
+  // Independent of the recurring shift/rolling alerts above - a staff
+  // member can have both an ongoing schedule and occasional one-off
+  // tasks. ──
+  let tasksSent = 0;
+  const overdueTasks: { task_id: string; staff_name: string; label: string | null; due_at: string; admin_chat_id: string }[] =
+    (await callRpc('stf_find_overdue_tasks', {})) || [];
+  for (const t of overdueTasks) {
+    const dueStr = new Date(t.due_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+    const what = t.label ? `"${t.label}"` : 'their assigned task';
+    const ok = await sendTelegramMessage(
+      t.admin_chat_id,
+      `⚠️ ${t.staff_name} has not reached/checked in for ${what} (due ${dueStr}).`
+    );
+    if (ok) {
+      await callRpc('stf_mark_task_alerted', { p_task_id: t.task_id });
+      tasksSent++;
+    }
+  }
+
+  return new Response(JSON.stringify({ checked: overdue.length, sent, companyApprovalsSent, staffApprovalsSent, tasksSent }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

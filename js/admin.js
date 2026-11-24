@@ -141,6 +141,7 @@ function renderStaffList(list, pending) {
           ? `<button class="btn-accent btn-sm" onclick="setStaffActive('${p.id}', true)">Approve</button>`
           : (p.role !== 'admin' ? `
               <button class="btn-secondary btn-sm" onclick="openScheduleModal('${p.id}')">Schedule</button>
+              <button class="btn-secondary btn-sm" onclick="openTaskModal('${p.id}')">+ Task</button>
               <button class="btn-danger btn-sm" onclick="setStaffActive('${p.id}', false)">Deactivate</button>
             ` : '')}
       </div>
@@ -293,6 +294,91 @@ async function saveSchedule() {
   closeModal();
   showToast('✅ Schedule saved!', 'success');
   renderStaffPage(document.getElementById('page-content'));
+}
+
+// ---------- One-time tasks (separate from recurring shift/rolling above -
+// a staff member can have both at once) ----------
+
+let _taskStaffId = null;
+
+async function openTaskModal(staffId) {
+  _taskStaffId = staffId;
+  const staff = _staffCache.find(p => p.id === staffId);
+  openModal(await renderTaskModalBody(staff));
+}
+
+async function renderTaskModalBody(staff) {
+  const { data: tasks } = await db.from('stf_tasks')
+    .select('id,label,due_at,grace_minutes,alerted_at')
+    .eq('staff_id', _taskStaffId)
+    .gte('due_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
+    .order('due_at');
+  return `
+    <div class="modal-title">One-Time Task - ${escapeHtml(staff.name)}</div>
+    <p class="form-hint">For a single deadline (e.g. "reach by 3pm today"), separate from any recurring schedule set above - a staff member can have both.</p>
+    <div id="task-list">${renderTaskList(tasks || [])}</div>
+    <div class="form-group" style="margin-top:14px;">
+      <label>What / where (optional)</label>
+      <input type="text" id="task-label" placeholder="e.g. Reach client site" />
+    </div>
+    <div class="form-group">
+      <label>Must reach by</label>
+      <input type="datetime-local" id="task-due-at" />
+    </div>
+    <div class="form-group">
+      <label>Grace margin (minutes)</label>
+      <input type="number" id="task-grace" min="0" value="10" />
+    </div>
+    <div class="error-msg" id="task-error"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="createTask()">Assign Task</button>
+      <button class="btn-secondary" onclick="closeModal()">Close</button>
+    </div>
+  `;
+}
+
+function renderTaskList(tasks) {
+  if (!tasks.length) return `<p class="form-hint">No upcoming/recent tasks.</p>`;
+  return tasks.map(t => `
+    <div class="list-item">
+      <div>
+        <div class="list-item-name">${escapeHtml(t.label || 'Task')}</div>
+        <div class="list-item-sub">By ${new Date(t.due_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}${t.alerted_at ? ' · ⚠️ missed, you were notified' : ''}</div>
+      </div>
+      <button class="btn-danger btn-sm" onclick="deleteTask('${t.id}')">✕</button>
+    </div>
+  `).join('');
+}
+
+async function createTask() {
+  const errEl = document.getElementById('task-error');
+  errEl.textContent = '';
+  const label = document.getElementById('task-label').value.trim();
+  const dueRaw = document.getElementById('task-due-at').value;
+  const grace = parseInt(document.getElementById('task-grace').value, 10);
+  if (!dueRaw) { errEl.textContent = 'Set the deadline date/time.'; return; }
+  const dueAt = new Date(dueRaw);
+  if (isNaN(dueAt.getTime())) { errEl.textContent = 'Invalid date/time.'; return; }
+
+  const { error } = await db.rpc('stf_create_task', {
+    p_staff_id: _taskStaffId,
+    p_label: label || null,
+    p_due_at: dueAt.toISOString(),
+    p_grace_minutes: isNaN(grace) ? 10 : grace,
+  });
+  if (error) { errEl.textContent = error.message; return; }
+  showToast('✅ Task assigned!', 'success');
+  document.getElementById('task-label').value = '';
+  document.getElementById('task-due-at').value = '';
+  const staff = _staffCache.find(p => p.id === _taskStaffId);
+  openModal(await renderTaskModalBody(staff));
+}
+
+async function deleteTask(taskId) {
+  const { error } = await db.rpc('stf_delete_task', { p_task_id: taskId });
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  const staff = _staffCache.find(p => p.id === _taskStaffId);
+  openModal(await renderTaskModalBody(staff));
 }
 
 async function setStaffActive(profileId, active) {
