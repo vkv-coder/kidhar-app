@@ -110,11 +110,17 @@ async function runLookup() {
 
 async function renderStaffPage(container) {
   container.innerHTML = `<div class="card"><p>Loading...</p></div>`;
-  await loadStaffCache();
+  const [, pendingTasksRes] = await Promise.all([loadStaffCache(), db.rpc('stf_list_pending_tasks')]);
   const pending = _staffCache.filter(p => !p.active);
   const active = _staffCache.filter(p => p.active);
+  const pendingTasks = pendingTasksRes.data || [];
 
   container.innerHTML = `
+    <div class="card">
+      <div class="section-header"><h3>Pending Tasks</h3></div>
+      <p class="form-hint">One-time "reach by" tasks still awaiting check-in - not recurring shift/rolling schedules.</p>
+      <div id="pending-tasks-list">${renderPendingTasksList(pendingTasks)}</div>
+    </div>
     <div class="card">
       <div class="section-header"><h3>Pending Approval</h3></div>
       <div id="pending-list">${renderStaffList(pending, true)}</div>
@@ -124,6 +130,37 @@ async function renderStaffPage(container) {
       <div id="active-list">${renderStaffList(active, false)}</div>
     </div>
   `;
+}
+
+function renderPendingTasksList(tasks) {
+  if (tasks.length === 0) {
+    return `<div class="empty-state"><p>No pending tasks - everyone has checked in.</p></div>`;
+  }
+  const now = Date.now();
+  return tasks.map(t => {
+    const dueMs = new Date(t.due_at).getTime();
+    const graceEndMs = dueMs + t.grace_minutes * 60000;
+    let statusLabel, statusColor;
+    if (now > graceEndMs) { statusLabel = '⚠️ Overdue'; statusColor = '#D32F2F'; }
+    else if (now >= dueMs) { statusLabel = '⏳ In grace period'; statusColor = '#E8960B'; }
+    else { statusLabel = 'Upcoming'; statusColor = 'var(--text-muted)'; }
+
+    return `
+      <div class="list-item">
+        <div>
+          <div class="list-item-name">${escapeHtml(t.staff_name)} - ${escapeHtml(t.label || 'Task')}</div>
+          <div class="list-item-sub">By ${new Date(t.due_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} &middot; <span style="color:${statusColor};font-weight:600;">${statusLabel}</span></div>
+        </div>
+        <button class="btn-danger btn-sm" onclick="deletePendingTask('${t.task_id}')">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deletePendingTask(taskId) {
+  const { error } = await db.rpc('stf_delete_task', { p_task_id: taskId });
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  renderStaffPage(document.getElementById('page-content'));
 }
 
 function renderStaffList(list, pending) {
