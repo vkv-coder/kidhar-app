@@ -15,6 +15,11 @@ const BOT_TOKEN = Deno.env.get('KIDHAR_TELEGRAM_BOT_TOKEN')!;
 const CRON_SECRET = Deno.env.get('KIDHAR_CRON_SECRET')!;
 const VAPID_PUBLIC_KEY = Deno.env.get('KIDHAR_VAPID_PUBLIC_KEY')!;
 const VAPID_PRIVATE_KEY = Deno.env.get('KIDHAR_VAPID_PRIVATE_KEY')!;
+// The Kidhar app operator's own chat (not any company's admin) - set once
+// by messaging the bot and taking the chat id it reports, then
+// `supabase secrets set KIDHAR_APP_ADMIN_CHAT_ID=...`. New-company
+// approval pings go here; if unset, that loop below is just skipped.
+const APP_ADMIN_CHAT_ID = Deno.env.get('KIDHAR_APP_ADMIN_CHAT_ID');
 
 webpush.setVapidDetails('mailto:info.anyapps@gmail.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -129,7 +134,41 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ checked: overdue.length, sent }), {
+  // ── New-company approvals: ping the app operator (not a company admin -
+  // no company exists yet for this one) once per pending company. ──
+  let companyApprovalsSent = 0;
+  if (APP_ADMIN_CHAT_ID) {
+    const pendingCompanies: { company_id: string; company_name: string; admin_name: string; admin_email: string }[] =
+      (await callRpc('stf_find_pending_company_approvals', {})) || [];
+    for (const c of pendingCompanies) {
+      const ok = await sendTelegramMessage(
+        APP_ADMIN_CHAT_ID,
+        `🏢 New Kidhar company awaiting your approval:\n"${c.company_name}" - admin ${c.admin_name} (${c.admin_email})\n\nApprove via: supabase db query --linked (select stf_app_admin_approve_company('${c.company_id}'))`
+      );
+      if (ok) {
+        await callRpc('stf_mark_company_approval_notified', { p_company_id: c.company_id });
+        companyApprovalsSent++;
+      }
+    }
+  }
+
+  // ── New staff approvals: ping that staff member's own company admin,
+  // if the admin has Telegram connected. ──
+  let staffApprovalsSent = 0;
+  const pendingStaff: { staff_id: string; staff_name: string; admin_chat_id: string }[] =
+    (await callRpc('stf_find_pending_staff_approvals', {})) || [];
+  for (const s of pendingStaff) {
+    const ok = await sendTelegramMessage(
+      s.admin_chat_id,
+      `🧑‍💼 ${s.staff_name} has requested to join your company on Kidhar. Approve them from the Staff section of the app.`
+    );
+    if (ok) {
+      await callRpc('stf_mark_staff_approval_notified', { p_staff_id: s.staff_id });
+      staffApprovalsSent++;
+    }
+  }
+
+  return new Response(JSON.stringify({ checked: overdue.length, sent, companyApprovalsSent, staffApprovalsSent }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

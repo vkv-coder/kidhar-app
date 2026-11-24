@@ -25,7 +25,11 @@ function showSetupScreen() {
   document.getElementById('main-screen').style.display = 'none';
   document.getElementById('setup-screen').style.display = 'flex';
   document.getElementById('setup-name').value = (currentUser.user_metadata && currentUser.user_metadata.name) || '';
-  document.getElementById('setup-mode').value = 'join';
+  // Carried through from the home page's Admin/Staff choice (signup.html's
+  // `?as=` -> emailRedirectTo), so the person doesn't have to re-decide
+  // here - still shown/editable in case they picked the wrong link.
+  const asParam = new URLSearchParams(location.search).get('as');
+  document.getElementById('setup-mode').value = asParam === 'admin' ? 'create' : 'join';
   onSetupModeChange();
   loadCompaniesForSetup();
 }
@@ -55,7 +59,12 @@ async function finishSetup() {
 
   document.getElementById('setup-screen').style.display = 'none';
   if (!currentProfile.active) {
-    showToast('✅ Account created! Ask your admin to approve you before you can check in.', 'success');
+    showToast(
+      mode === 'create'
+        ? '✅ Request received! Your new company is awaiting approval from the Kidhar team - you\'ll be notified once it\'s approved.'
+        : '✅ Account created! Ask your admin to approve you before you can check in.',
+      'success'
+    );
     document.getElementById('login-screen').style.display = 'flex';
     await db.auth.signOut();
     currentUser = null;

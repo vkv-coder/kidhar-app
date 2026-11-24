@@ -46,7 +46,10 @@ Deno.serve(async (req) => {
   const code = text.startsWith('/start') ? text.replace('/start', '').trim() : text;
 
   if (!code) {
-    await sendTelegramMessage(chatId, '👋 Welcome! Go to Kidhar’s Settings page, tap "Connect Telegram", and tap the link it gives you to finish connecting.');
+    await sendTelegramMessage(
+      chatId,
+      `👋 Welcome! Go to Kidhar’s Settings page, tap "Connect Telegram", and tap the link it gives you to finish connecting.\n\nYour chat ID is ${chatId} (the Kidhar app operator uses this one to receive new-company approval requests - set as KIDHAR_APP_ADMIN_CHAT_ID, unrelated to the company-admin linking above).`
+    );
     return new Response('ok');
   }
 
@@ -55,7 +58,7 @@ Deno.serve(async (req) => {
     chatId,
     matched
       ? '✅ Connected! You will now get Kidhar alerts here.'
-      : '❌ That code wasn’t recognized or was already used. Go back to Kidhar’s Settings page and tap "Connect Telegram" for a fresh code.'
+      : `❌ That code wasn’t recognized or was already used. Go back to Kidhar’s Settings page and tap "Connect Telegram" for a fresh code.\n\n(Your chat ID is ${chatId}, in case you need it for something else.)`
   );
   return new Response('ok');
 });

@@ -32,9 +32,13 @@
     <button class="btn-primary" onclick="login()">Log In</button>
     <div class="error-msg" id="login-error"></div>
     <p style="text-align:center;margin-top:16px;font-size:13px;">
-      <a href="javascript:void(0)" onclick="showForgotPassword()" style="color:var(--primary);">Forgot password?</a><br>
-      No account? <a href="signup.html" style="color:var(--primary);">Sign up</a>
+      <a href="javascript:void(0)" onclick="showForgotPassword()" style="color:var(--primary);">Forgot password?</a>
     </p>
+    <p style="text-align:center;margin-top:14px;font-size:13px;">No account? Sign up as:</p>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <a href="signup.html?as=admin" class="btn-secondary" style="flex:1;text-align:center;text-decoration:none;display:block;padding:11px 8px;font-size:12.5px;">👔 Admin<br><span style="font-weight:400;font-size:11px;">Start a new company</span></a>
+      <a href="signup.html?as=staff" class="btn-secondary" style="flex:1;text-align:center;text-decoration:none;display:block;padding:11px 8px;font-size:12.5px;">🧑‍💼 Staff<br><span style="font-weight:400;font-size:11px;">Join your company</span></a>
+    </div>
     <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-muted);">Support: info.anyapps@gmail.com</p>
   </div>
   <div class="app-footer">
