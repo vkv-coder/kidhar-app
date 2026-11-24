@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: blob:; font-src 'self' data: https:; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kidhar — App Admin</title>
+<meta name="theme-color" content="#103A5C">
+<link rel="stylesheet" href="css/style.css">
+<style>
+.pending-card{background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:10px;padding:14px;margin-bottom:12px;}
+.pending-name{font-size:15px;font-weight:600;}
+.pending-meta{font-size:12px;color:var(--text-muted,#777);margin-top:2px;}
+.pending-empty{text-align:center;color:var(--text-muted,#777);padding:30px 10px;font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="logo-area">
+      <div class="logo-icon">🛠️</div>
+      <h1>App Admin</h1>
+      <div class="subtitle">Kidhar operator tools</div>
+    </div>
+    <div class="form-group">
+      <label>PIN</label>
+      <input type="password" id="admin-pin" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn-primary" onclick="login()">Log In</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<div id="main-screen" style="display:none;max-width:480px;margin:0 auto;padding:20px 16px 60px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <h2 style="font-size:18px;">Pending Companies</h2>
+    <button class="btn-secondary" style="width:auto;padding:8px 14px;font-size:12px;" onclick="logout()">Log out</button>
+  </div>
+  <div id="pending-list"><div class="pending-empty">Loading…</div></div>
+  <button class="btn-secondary" style="margin-top:14px;" onclick="loadPending()">↻ Refresh</button>
+</div>
+
+<script>
+const FN_URL = 'https://wrzpgultvahxbrgooibn.supabase.co/functions/v1/kidhar-app-admin';
+const ANON_KEY = 'sb_publishable_eaTIKWQ1QAI1E07kZaiGTA_dfWDyQTs';
+let adminToken = sessionStorage.getItem('kidhar_app_admin_token') || null;
+
+async function call(action, extra) {
+  const res = await fetch(FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+    body: JSON.stringify({ action, token: adminToken, ...extra }),
+  });
+  return res.json();
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showMain() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-screen').style.display = 'block';
+  loadPending();
+}
+
+async function login() {
+  const pin = document.getElementById('admin-pin').value.trim();
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!pin) { errEl.textContent = 'Enter the PIN.'; return; }
+  const res = await call('login', { pin });
+  if (res.error) { errEl.textContent = res.error; return; }
+  adminToken = res.token;
+  sessionStorage.setItem('kidhar_app_admin_token', adminToken);
+  showMain();
+}
+
+function logout() {
+  sessionStorage.removeItem('kidhar_app_admin_token');
+  adminToken = null;
+  document.getElementById('main-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-pin').value = '';
+}
+
+async function loadPending() {
+  const list = document.getElementById('pending-list');
+  list.innerHTML = '<div class="pending-empty">Loading…</div>';
+  const res = await call('list_pending');
+  if (res.error) {
+    if (res.error === 'Not logged in') { logout(); return; }
+    list.innerHTML = '<div class="pending-empty">Error: ' + escapeHtml(res.error) + '</div>';
+    return;
+  }
+  const companies = res.companies || [];
+  if (!companies.length) {
+    list.innerHTML = '<div class="pending-empty">No companies waiting for approval.</div>';
+    return;
+  }
+  list.innerHTML = companies.map(c => `
+    <div class="pending-card" id="pc-${c.company_id}">
+      <div class="pending-name">${escapeHtml(c.company_name)}</div>
+      <div class="pending-meta">Admin: ${escapeHtml(c.admin_name)} · ${escapeHtml(c.admin_email)}</div>
+      <button class="btn-primary" style="margin-top:10px;" onclick="approve('${c.company_id}')">✅ Approve</button>
+    </div>
+  `).join('');
+}
+
+async function approve(companyId) {
+  const card = document.getElementById('pc-' + companyId);
+  const btn = card.querySelector('button');
+  btn.textContent = 'Approving…'; btn.disabled = true;
+  const res = await call('approve', { company_id: companyId });
+  if (res.error) { alert('Error: ' + res.error); btn.textContent = '✅ Approve'; btn.disabled = false; return; }
+  card.style.opacity = '0.5';
+  btn.textContent = '✓ Approved';
+  setTimeout(loadPending, 800);
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!adminToken) return;
+  const res = await call('verify');
+  if (res.valid) showMain();
+  else { adminToken = null; sessionStorage.removeItem('kidhar_app_admin_token'); }
+});
+</script>
+</body>
+</html>
