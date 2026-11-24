@@ -1,3 +1,11 @@
+# Secondary/backup trigger only. GitHub Actions' schedule trigger proved
+# unreliable here - observed gaps of several hours instead of 15 minutes
+# (see cron-check history), which delayed real staff alerts. The primary
+# trigger is now a pg_cron job ('kidhar-idle-check', every 5 min) running
+# inside the Supabase project itself - see
+# supabase/migration_pg_cron_idle_check.sql. This workflow is left running
+# as a harmless fallback: the Edge Function marks each alert sent
+# (alerted_at / last_alert_sent_at), so a duplicate call here is a no-op.
 name: Kidhar idle/shift check
 
 on:
