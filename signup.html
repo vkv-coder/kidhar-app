@@ -24,6 +24,11 @@
       <label>Your Name</label>
       <input type="text" id="su-name" />
     </div>
+    <div class="form-group" id="su-company-group" style="display:none;">
+      <label>Company Name <span style="font-weight:400;">(optional)</span></label>
+      <input type="text" id="su-company" />
+      <div class="form-hint">You can also fill this in after confirming your email.</div>
+    </div>
     <div class="form-group">
       <label>Email</label>
       <input type="email" id="su-email" autocomplete="off" oninput="updateEmailPreview()" />
@@ -70,6 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     document.getElementById('su-title').textContent = 'Admin Sign Up';
     document.getElementById('su-subtitle').textContent = 'Start a new company on Kidhar';
+    document.getElementById('su-company-group').style.display = 'block';
   }
 });
 
@@ -88,10 +94,14 @@ async function doSignup() {
   }
   if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
+  const company = signupAs === 'admin' ? document.getElementById('su-company').value.trim() : '';
+  let redirectUrl = window.location.origin + '/index.html?as=' + signupAs;
+  if (company) redirectUrl += '&company=' + encodeURIComponent(company);
+
   const { data, error } = await db.auth.signUp({
     email: tagEmail(email),
     password,
-    options: { data: { name }, emailRedirectTo: window.location.origin + '/index.html?as=' + signupAs }
+    options: { data: { name }, emailRedirectTo: redirectUrl }
   });
   if (error) { errEl.textContent = error.message; return; }
 

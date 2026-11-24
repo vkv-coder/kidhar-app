@@ -28,8 +28,10 @@ function showSetupScreen() {
   // Carried through from the home page's Admin/Staff choice (signup.html's
   // `?as=` -> emailRedirectTo), so the person doesn't have to re-decide
   // here - still shown/editable in case they picked the wrong link.
-  const asParam = new URLSearchParams(location.search).get('as');
+  const params = new URLSearchParams(location.search);
+  const asParam = params.get('as');
   document.getElementById('setup-mode').value = asParam === 'admin' ? 'create' : 'join';
+  document.getElementById('setup-company-name').value = params.get('company') || '';
   onSetupModeChange();
   loadCompaniesForSetup();
 }
